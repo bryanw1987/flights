@@ -81,22 +81,16 @@
   </div>
 
   <script>
-    const LOGOS = {
-      'UNITED': 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e0/United_Airlines_Logo.svg/100px-United_Airlines_Logo.svg.png',
-      'UA': 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e0/United_Airlines_Logo.svg/100px-United_Airlines_Logo.svg.png',
-      
-      'DELTA': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Delta_logo.svg/100px-Delta_logo.svg.png',
-      'DL': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Delta_logo.svg/100px-Delta_logo.svg.png',
-      
-      'AMERICAN': 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/American_Airlines_logo_2013.svg/100px-American_Airlines_logo_2013.svg.png',
-      'AA': 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/American_Airlines_logo_2013.svg/100px-American_Airlines_logo_2013.svg.png',
-      
-      'SOUTHWEST': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Southwest_Airlines_logo_2014.svg/100px-Southwest_Airlines_logo_2014.svg.png',
-      'WN': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Southwest_Airlines_logo_2014.svg/100px-Southwest_Airlines_logo_2014.svg.png',
-      
-      'JETBLUE': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/JetBlue_Airways_Logo.svg/100px-JetBlue_Airways_Logo.svg.png',
-      'B6': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/JetBlue_Airways_Logo.svg/100px-JetBlue_Airways_Logo.svg.png'
-    };
+    // Smarter logo matcher that groups by exact matches and partial matches
+    const AIRLINE_LOGOS = [
+      { names: ['UNITED', 'UA', 'UAL'], url: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e0/United_Airlines_Logo.svg/100px-United_Airlines_Logo.svg.png' },
+      { names: ['DELTA', 'DL', 'DAL'], url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Delta_logo.svg/100px-Delta_logo.svg.png' },
+      { names: ['AMERICAN', 'AA', 'AAL'], url: 'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/American_Airlines_logo_2013.svg/100px-American_Airlines_logo_2013.svg.png' },
+      { names: ['SOUTHWEST', 'WN', 'SWA'], url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Southwest_Airlines_logo_2014.svg/100px-Southwest_Airlines_logo_2014.svg.png' },
+      { names: ['JETBLUE', 'B6', 'JBU'], url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/JetBlue_Airways_Logo.svg/100px-JetBlue_Airways_Logo.svg.png' },
+      { names: ['ALASKA', 'AS', 'ASA'], url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Alaska_Airlines_logo.svg/100px-Alaska_Airlines_logo.svg.png' },
+      { names: ['SPIRIT', 'NK', 'NKS'], url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Spirit_Airlines_logo.svg/100px-Spirit_Airlines_logo.svg.png' }
+    ];
 
     let countdown = 60;
     let timerInterval;
@@ -172,16 +166,28 @@
             if (isActiveFlight) headerBadge = `<span class="badge badge-live">LIVE</span>`;
             else if (percent === 100) headerBadge = `<span class="badge badge-completed">COMPLETED</span>`;
 
-            // FIXED LOGO MATCHING
-            const companyStr = (f.company || "").toUpperCase();
-            const logoKey = Object.keys(LOGOS).find(k => companyStr.includes(k) || companyStr === k);
-            const logoSrc = logoKey ? LOGOS[logoKey] : '';
+            // NEW LOGO MATCHING LOGIC
+            const companyStr = (f.company || "").toUpperCase().trim();
+            let logoSrc = '';
+            
+            for (const airline of AIRLINE_LOGOS) {
+              // Exact match or includes full name (ignores short codes like "AA" embedded in other words)
+              if (airline.names.some(name => companyStr === name || (name.length > 2 && companyStr.includes(name)))) {
+                logoSrc = airline.url;
+                break;
+              }
+            }
+
+            // HTML for the logo - Includes an 'onerror' to remove the image box entirely if the URL breaks
+            const imageHtml = logoSrc 
+              ? `<img src="${logoSrc}" class="logo" onerror="this.style.display='none'">` 
+              : '✈️';
 
             const cardHtml = `
               <div class="card ${isActiveFlight ? 'active' : ''} ${isOld ? 'archived' : ''}">
                 <div class="top-bar ${isOld ? 'archived-header' : ''}">
                   <div class="airline-brand">
-                    ${logoSrc ? `<img src="${logoSrc}" class="logo">` : '✈️'}
+                    ${imageHtml}
                     <span class="airline-info">${f.company || 'Unknown Airline'} · ${f.flightNo || ''}</span>
                   </div>
                   <div class="badge-container">
@@ -210,7 +216,7 @@
             }
           });
 
-          // FIXED SORTING: Sort archived flights by arrival time descending (newest first)
+          // Sort archived flights by arrival time descending (newest first)
           archivedFlightsArray.sort((a, b) => b.arrTime - a.arrTime);
 
           const activeHtml = activeHtmlArray.join('');
